@@ -10,7 +10,7 @@ const vert = glslify('./vert.glsl')
 const frag = glslify('./frag.glsl')
 const vid = glslify('./video.glsl')
 
-var dShader, upShader, vShader, state, current =0, time = 0
+var dShader, upShader, vShader, state, stateSize, current =0, time = 0
 
 let oct1 = 0.0457, oct2 = 8, oct3 = 3, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
@@ -56,6 +56,7 @@ function makeTexture(gl) {
 
     // this tells OpenGL which texture object to use for subsequent operations
     //gl.bindTexture( gl.TEXTURE_2D, texture )
+    var initial_conditions = new Float32Array(stateSize*stateSize*4)
     state[2].color[0].bind()
 
     // since canvas draws from the top and shaders draw from the bottom, we
@@ -93,7 +94,7 @@ shell.on("gl-init", function () {
 
     state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
 
-    var stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
+    stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
     var pixelSize = 4
     var feedSize = 48
 
@@ -161,6 +162,7 @@ shell.on("gl-render", function () {
     }
 
     vShader.uniforms.Video = state[2].color[0].bind()
+    vShader.uniforms.State = state[ current ].color[0].bind()
     fillScreen(gl)
 
     dShader.bind()
