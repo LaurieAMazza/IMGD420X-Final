@@ -19,19 +19,19 @@ ws.onmessage = function(msg){
     //console.log('msg recieved:', msg)
     if(json.address === '/rotation_vector/r1'){
         console.log(json.args[0].value)
-       if(Math.abs(json.args[0].value) < 0.099 && Math.abs(json.args[0].value) > 0.04){
+       if(Math.abs(json.args[0].value) < 0.099 && Math.abs(json.args[0].value) > 0.03){
             oct1 = Math.abs(json.args[0].value)
         } else if(Math.abs(json.args[0].value) > 0.099){
             oct1 = (Math.abs(json.args[0].value)/10.0) + 0.029
         } else{
-            oct1 = Math.abs(json.args[0].value) + 0.0457
+            oct1 = Math.abs(json.args[0].value) + 0.03//0.0457
         }
     }
 
     if(oct1 < 0.039){
-        oct1 = 0.04
+        //oct1 = 0.04
     } else if(oct1 > 0.075){
-        oct1 = 0.07
+        //oct1 = 0.07
     }
     console.log(oct1)
 }
@@ -56,7 +56,6 @@ function makeTexture(gl) {
 
     // this tells OpenGL which texture object to use for subsequent operations
     //gl.bindTexture( gl.TEXTURE_2D, texture )
-    var initial_conditions = new Float32Array(stateSize*stateSize*4)
     state[2].color[0].bind()
 
     // since canvas draws from the top and shaders draw from the bottom, we
@@ -143,8 +142,9 @@ shell.on("tick", function () {
 shell.on("gl-render", function () {
     var gl = shell.gl
 
-    vShader.bind()
     state[2].color[0].bind()
+    vShader.bind()
+
     // check to see if video is playing and the texture has been created
     if( textureLoaded === true ) {
         //state[2].color[0].bind()
@@ -161,9 +161,9 @@ shell.on("gl-render", function () {
         //gl.drawArrays( gl.TRIANGLES, 0, 6 )
     }
 
-    vShader.uniforms.Video = state[2].color[0].bind()
-    vShader.uniforms.State = state[ current ].color[0].bind()
-    fillScreen(gl)
+    vShader.uniforms.Video = state[2].color[0]//.bind()
+    vShader.uniforms.State = state[ current ].color[0]//.bind()
+    //fillScreen(gl)
 
     dShader.bind()
     dShader.uniforms.state = state[ current ].color[0].bind()
