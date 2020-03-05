@@ -3,7 +3,7 @@
   #endif
 
   uniform sampler2D Video;
-  uniform sampler2D State;
+  //uniform sampler2D State;
   uniform vec2 resolution;
 
   void main() {

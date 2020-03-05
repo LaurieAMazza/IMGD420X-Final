@@ -10,7 +10,7 @@ const vert = glslify('./vert.glsl')
 const frag = glslify('./frag.glsl')
 const vid = glslify('./video.glsl')
 
-var dShader, upShader, vShader, state, video, stateSize, current =0, time = 0
+var dShader, upShader, vShader, state, vide, stateSize, current =0, time = 0, w
 
 let oct1 = 0.0457, oct2 = 8, oct3 = 3, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
@@ -44,22 +44,19 @@ function getVideo(gl) {
     }).then( stream => {
         video.srcObject = stream
         video.play()
-        vide.color[0]
-        //makeTexture(gl)
+        makeTexture(gl)
     })
-
-    textureLoaded = true
 
     return video
 }
 
 function makeTexture(gl) {
     // create an OpenGL texture object
-    //var texture = gl.createTexture()
+    vide = gl.createTexture()
 
     // this tells OpenGL which texture object to use for subsequent operations
-    //gl.bindTexture( gl.TEXTURE_2D, texture )
-    //gl.bindTexture(gl.TEXTURE_2D, vide.color[0])
+    gl.bindTexture( gl.TEXTURE_2D, vide )
+    //l.bindTexture(gl.TEXTURE_2D, vide.color[0])
 
     // since canvas draws from the top and shaders draw from the bottom, we
     // have to flip our canvas when using it as a shader.
@@ -75,6 +72,8 @@ function makeTexture(gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE )
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE )
 
+    gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, w, w, 0, gl.RGBA, gl.FLOAT, null )
+
     // let our render loop know when the texture is ready
     textureLoaded = true
 }
@@ -84,7 +83,7 @@ shell.on("gl-init", function () {
     const canvas = document.querySelector( 'canvas' )
     canvas.width = window.innerWidth
     //console.log(canvas.width)
-    const w = gl.drawingBufferWidth
+    w = canvas.width
     const h = gl.drawingBufferHeight
     //console.log(w)
 
@@ -95,7 +94,7 @@ shell.on("gl-init", function () {
     vShader = createShader(gl, vert, vid)
 
     state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
-    vide = fbo(gl, [canvas.width,canvas.width])
+    //vide = fbo(gl, [canvas.width,canvas.width])
 
     stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
     var pixelSize = 4
@@ -122,11 +121,28 @@ shell.on("gl-init", function () {
         gl.TEXTURE_2D, 0, 0, 0, stateSize, stateSize, gl.RGBA, gl.FLOAT, initial_conditions
     )
 
-    getVideo(gl)
+    video = getVideo(gl)
 })
 
 shell.on("tick", function () {
     var gl = shell.gl
+
+    vShader.bind()
+
+    // check to see if video is playing and the texture has been created
+    if( textureLoaded === true ) {
+
+        gl.texImage2D(
+            gl.TEXTURE_2D,    // target: you will always want gl.TEXTURE_2D
+            0,                // level of detail: 0 is the base
+            gl.RGBA, gl.RGBA, // color formats
+            gl.FLOAT, // type: the type of texture data; 0-255
+            video             // pixel source: could also be video or image
+        )
+        vShader.uniforms.Video = vide
+        //vShader.uniforms.State = state[ current ].color[0]//.bind()
+        //fillScreen(gl)
+    }
 
     var prevState = state[current]
     var curState = state[current ^= 1]
@@ -146,23 +162,9 @@ shell.on("tick", function () {
 shell.on("gl-render", function () {
     var gl = shell.gl
 
-    //vide.color[0].bind()
-    vShader.bind()
-
-    // check to see if video is playing and the texture has been created
-    if( textureLoaded === true ) {
-        vShader.uniforms.Video = vide.color[0].bind()
-        vShader.uniforms.State = state[ current ].color[0]//.bind()
-        fillScreen(gl)
-    }
-
-    //vShader.uniforms.Video = vide.color[0].bind()
-    //vShader.uniforms.State = state[ current ].color[0]//.bind()
-    //fillScreen(gl)
-
     dShader.bind()
     dShader.uniforms.state = state[ current ].color[0].bind()
-    dShader.uniforms.vState = vide.color[0]//.bind()
+    dShader.uniforms.vState = vide
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
     dShader.uniforms.f = oct1

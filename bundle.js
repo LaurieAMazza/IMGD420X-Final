@@ -3385,9 +3385,9 @@ const toy     = require('gl-toy')
 const draw = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform sampler2D vState;\n  uniform vec2 resolution;\n  uniform float f;\n  uniform mediump float time;\n  //add a control for the direction\n  //Use rotation?\n  //add color controls here?\n\n  vec4 blur5(sampler2D image, vec2 uv, vec2 res, vec2 direction) {\n    vec4 color = vec4(0.0);\n    vec2 off1 = vec2(2.3333333333333333) * (direction/tan(time));\n    color += texture2D(image, uv) * 0.29411764705882354;\n    color += texture2D(image, uv + (off1 / res)) * 0.35294117647058826;\n    color += texture2D(image, uv - (off1 / res)) * 0.35294117647058826;\n    return color;\n  }\n\n  void main() {\n     vec2 pos = gl_FragCoord.xy / resolution;\n     //vec4 color = vec4(0.0);\n\n     vec4 blur = blur5( state, pos, resolution, vec2(2.) );\n     vec4 vid = vec4( texture2D( vState, pos).rgb, 1. );\n     vec4 s = vec4( texture2D( state, pos).rgb, 1. );\n\n    //vec4 color = blur;\n\n     vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);\n\n     gl_FragColor = vec4( color.r, color.g, color.b, 1. );\n     //gl_FragColor = s;\n  }"])
 const vert = glslify(["#define GLSLIFY 1\nattribute vec2 a_position;\n\nvoid main() {\n  gl_Position = vec4( a_position, 0., 1. );\n}"])
 const frag = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform vec2 resolution;\n  uniform float f;\n  //float f=.0545, k=.062, dA = 1., dB = 0.; // coral preset\n  float k = .0635, dA = 1., dB = .5;\n\n  // 2D Random\n  float random (in vec2 st) {\n      return fract(sin(dot(st.xy, vec2(12.9898,78.233)))* 43758.5453123);\n  }\n\n  vec2 get(int x, int y) {\n    return texture2D( state, ( gl_FragCoord.xy + vec2(x, y) ) / resolution ).rg;\n  }\n\n  vec2 run() {\n    vec2 state = get( 0, 0 );\n    float a = state.r;\n    float b = state.g;\n    float sumA = a * -1.;\n    float sumB = b * -1.;\n\n    sumA += get(-1,0).r * .2;\n    sumA += get(-1,-1).r * .05;\n    sumA += get(0,-1).r * .2;\n    sumA += get(1,-1).r * .05;\n    sumA += get(1,0).r * .2;\n    sumA += get(1,1).r * .05;\n    sumA += get(0,1).r * .2;\n    sumA += get(-1,1).r * .05;\n\n    sumB += get(-1,0).g * .2;\n    sumB += get(-1,-1).g * .05;\n    sumB += get(0,-1).g * .2;\n    sumB += get(1,-1).g * .05;\n    sumB += get(1,0).g * .2;\n    sumB += get(1,1).g * .05;\n    sumB += get(0,1).g * .2;\n    sumB += get(-1,1).g * .05;\n\n    state.r = a + dA\n      * sumA -\n      a * b * b +\n      f * (1. - a);\n\n    state.g = b + dB *\n      sumB +\n      a * b * b -\n      ((k+f) * b);\n\n    return state;\n  }\n  void main() {\n    vec2 nextState = run();\n    //Control with input?\n    float b = random(vec2(1.0, 1.0));\n    gl_FragColor = vec4( nextState.r, nextState.g, 0., 1. );\n  }"])
-const vid = glslify(["#ifdef GL_ES\n  precision mediump float;\n#define GLSLIFY 1\n\n  #endif\n\n  uniform sampler2D Video;\n  uniform sampler2D State;\n  uniform vec2 resolution;\n\n  void main() {\n    // copy color info from texture\n    gl_FragColor = vec4( texture2D( Video, gl_FragCoord.xy / resolution ).rgb, 1. );\n  }"])
+const vid = glslify(["#ifdef GL_ES\n  precision mediump float;\n#define GLSLIFY 1\n\n  #endif\n\n  uniform sampler2D Video;\n  //uniform sampler2D State;\n  uniform vec2 resolution;\n\n  void main() {\n    // copy color info from texture\n    gl_FragColor = vec4( texture2D( Video, gl_FragCoord.xy / resolution ).rgb, 1. );\n  }"])
 
-var dShader, upShader, vShader, state, video, stateSize, current =0, time = 0
+var dShader, upShader, vShader, state, vide, stateSize, current =0, time = 0, w
 
 let oct1 = 0.0457, oct2 = 8, oct3 = 3, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
@@ -3421,22 +3421,19 @@ function getVideo(gl) {
     }).then( stream => {
         video.srcObject = stream
         video.play()
-        vide.color[0]
-        //makeTexture(gl)
+        makeTexture(gl)
     })
-
-    textureLoaded = true
 
     return video
 }
 
 function makeTexture(gl) {
     // create an OpenGL texture object
-    //var texture = gl.createTexture()
+    vide = gl.createTexture()
 
     // this tells OpenGL which texture object to use for subsequent operations
-    //gl.bindTexture( gl.TEXTURE_2D, texture )
-    //gl.bindTexture(gl.TEXTURE_2D, vide.color[0])
+    gl.bindTexture( gl.TEXTURE_2D, vide )
+    //l.bindTexture(gl.TEXTURE_2D, vide.color[0])
 
     // since canvas draws from the top and shaders draw from the bottom, we
     // have to flip our canvas when using it as a shader.
@@ -3452,6 +3449,8 @@ function makeTexture(gl) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE )
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE )
 
+    gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, w, w, 0, gl.RGBA, gl.FLOAT, null )
+
     // let our render loop know when the texture is ready
     textureLoaded = true
 }
@@ -3461,7 +3460,7 @@ shell.on("gl-init", function () {
     const canvas = document.querySelector( 'canvas' )
     canvas.width = window.innerWidth
     //console.log(canvas.width)
-    const w = gl.drawingBufferWidth
+    w = canvas.width
     const h = gl.drawingBufferHeight
     //console.log(w)
 
@@ -3472,7 +3471,7 @@ shell.on("gl-init", function () {
     vShader = createShader(gl, vert, vid)
 
     state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
-    vide = fbo(gl, [canvas.width,canvas.width])
+    //vide = fbo(gl, [canvas.width,canvas.width])
 
     stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
     var pixelSize = 4
@@ -3499,11 +3498,28 @@ shell.on("gl-init", function () {
         gl.TEXTURE_2D, 0, 0, 0, stateSize, stateSize, gl.RGBA, gl.FLOAT, initial_conditions
     )
 
-    getVideo(gl)
+    video = getVideo(gl)
 })
 
 shell.on("tick", function () {
     var gl = shell.gl
+
+    vShader.bind()
+
+    // check to see if video is playing and the texture has been created
+    if( textureLoaded === true ) {
+
+        gl.texImage2D(
+            gl.TEXTURE_2D,    // target: you will always want gl.TEXTURE_2D
+            0,                // level of detail: 0 is the base
+            gl.RGBA, gl.RGBA, // color formats
+            gl.FLOAT, // type: the type of texture data; 0-255
+            video             // pixel source: could also be video or image
+        )
+        vShader.uniforms.Video = vide
+        //vShader.uniforms.State = state[ current ].color[0]//.bind()
+        //fillScreen(gl)
+    }
 
     var prevState = state[current]
     var curState = state[current ^= 1]
@@ -3523,23 +3539,9 @@ shell.on("tick", function () {
 shell.on("gl-render", function () {
     var gl = shell.gl
 
-    //vide.color[0].bind()
-    vShader.bind()
-
-    // check to see if video is playing and the texture has been created
-    if( textureLoaded === true ) {
-        vShader.uniforms.Video = vide.color[0].bind()
-        vShader.uniforms.State = state[ current ].color[0]//.bind()
-        fillScreen(gl)
-    }
-
-    //vShader.uniforms.Video = vide.color[0].bind()
-    //vShader.uniforms.State = state[ current ].color[0]//.bind()
-    //fillScreen(gl)
-
     dShader.bind()
     dShader.uniforms.state = state[ current ].color[0].bind()
-    dShader.uniforms.vState = vide.color[0]//.bind()
+    dShader.uniforms.vState = vide
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
     dShader.uniforms.f = oct1
