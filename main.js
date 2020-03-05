@@ -10,7 +10,7 @@ const vert = glslify('./vert.glsl')
 const frag = glslify('./frag.glsl')
 const vid = glslify('./video.glsl')
 
-var dShader, upShader, vShader, state, stateSize, current =0, time = 0
+var dShader, upShader, vShader, state, video, stateSize, current =0, time = 0
 
 let oct1 = 0.0457, oct2 = 8, oct3 = 3, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
@@ -44,8 +44,11 @@ function getVideo(gl) {
     }).then( stream => {
         video.srcObject = stream
         video.play()
-        makeTexture(gl)
+        vide.color[0]
+        //makeTexture(gl)
     })
+
+    textureLoaded = true
 
     return video
 }
@@ -56,7 +59,7 @@ function makeTexture(gl) {
 
     // this tells OpenGL which texture object to use for subsequent operations
     //gl.bindTexture( gl.TEXTURE_2D, texture )
-    state[2].color[0].bind()
+    //gl.bindTexture(gl.TEXTURE_2D, vide.color[0])
 
     // since canvas draws from the top and shaders draw from the bottom, we
     // have to flip our canvas when using it as a shader.
@@ -85,13 +88,14 @@ shell.on("gl-init", function () {
     const h = gl.drawingBufferHeight
     //console.log(w)
 
-    gl.disable(gl.DEPTH_TEST)
+    //gl.disable(gl.DEPTH_TEST)
 
     upShader = createShader(gl, vert, frag)
     dShader = createShader(gl, vert, draw)
     vShader = createShader(gl, vert, vid)
 
-    state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
+    state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
+    vide = fbo(gl, [canvas.width,canvas.width])
 
     stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
     var pixelSize = 4
@@ -142,32 +146,23 @@ shell.on("tick", function () {
 shell.on("gl-render", function () {
     var gl = shell.gl
 
-    state[2].color[0].bind()
+    //vide.color[0].bind()
     vShader.bind()
 
     // check to see if video is playing and the texture has been created
     if( textureLoaded === true ) {
-        //state[2].color[0].bind()
-        // send texture data to GPU
-        gl.texImage2D(
-            gl.TEXTURE_2D,    // target: you will always want gl.TEXTURE_2D
-            0,                // level of detail: 0 is the base
-            gl.RGBA, gl.RGBA, // color formats
-            gl.FLOAT, // type: the type of texture data; 0-255
-            video             // pixel source: could also be video or image
-        )
-
-        // draw triangles using the array buffer from index 0 to 6 (6 is count)
-        //gl.drawArrays( gl.TRIANGLES, 0, 6 )
+        vShader.uniforms.Video = vide.color[0].bind()
+        vShader.uniforms.State = state[ current ].color[0]//.bind()
+        fillScreen(gl)
     }
 
-    vShader.uniforms.Video = state[2].color[0]//.bind()
-    vShader.uniforms.State = state[ current ].color[0]//.bind()
+    //vShader.uniforms.Video = vide.color[0].bind()
+    //vShader.uniforms.State = state[ current ].color[0]//.bind()
     //fillScreen(gl)
 
     dShader.bind()
     dShader.uniforms.state = state[ current ].color[0].bind()
-    dShader.uniforms.vState = state[ 2 ].color[0].bind()
+    dShader.uniforms.vState = vide.color[0]//.bind()
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
     dShader.uniforms.f = oct1

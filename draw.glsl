@@ -21,14 +21,14 @@ precision mediump float;
      vec2 pos = gl_FragCoord.xy / resolution;
      //vec4 color = vec4(0.0);
 
-     //vec4 blur = blur5( state, pos, resolution, vec2(2.) );
+     vec4 blur = blur5( state, pos, resolution, vec2(2.) );
      vec4 vid = vec4( texture2D( vState, pos).rgb, 1. );
      vec4 s = vec4( texture2D( state, pos).rgb, 1. );
 
     //vec4 color = blur;
 
-     vec4 color = vec4(vid.r/2. * s.r, vid.g * s.r, vid.b * s.r, 1.);
+     vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);
 
-     gl_FragColor = vec4( 1. - color.r, 1. - color.r, 1. - color.r, 1. );
+     gl_FragColor = vec4( color.r, color.g, color.b, 1. );
      //gl_FragColor = s;
   }
