@@ -12,14 +12,14 @@ const vid = glslify('./video.glsl')
 
 var dShader, upShader, vShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 8, oct3 = 3, textureLoaded = false
+let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
     //console.log('msg recieved:', msg)
     if(json.address === '/rotation_vector/r1'){
         console.log(json.args[0].value)
-       if(Math.abs(json.args[0].value) < 0.099 && Math.abs(json.args[0].value) > 0.03){
+       if(Math.abs(json.args[0].value) < 0.099 && Math.abs(json.args[0].value) > 0.04){
             oct1 = Math.abs(json.args[0].value)
         } else if(Math.abs(json.args[0].value) > 0.099){
             oct1 = (Math.abs(json.args[0].value)/10.0) + 0.029
@@ -28,10 +28,20 @@ ws.onmessage = function(msg){
         }
     }
 
+    if(json.address === '/accelerometer/gravity/z'){
+        console.log(json.args[0].value)
+        oct2 = json.args[0].value
+    }
+
+    if(json.address === '/rotation_vector/r4'){
+        console.log(json.args[0].value)
+        oct3 = json.args[0].value
+    }
+
     if(oct1 < 0.039){
-        //oct1 = 0.04
+        oct1 = 0.04
     } else if(oct1 > 0.075){
-        //oct1 = 0.07
+        oct1 = 0.06
     }
     console.log(oct1)
 }
@@ -121,28 +131,11 @@ shell.on("gl-init", function () {
         gl.TEXTURE_2D, 0, 0, 0, stateSize, stateSize, gl.RGBA, gl.FLOAT, initial_conditions
     )
 
-    video = getVideo(gl)
+    //video = getVideo(gl)
 })
 
 shell.on("tick", function () {
     var gl = shell.gl
-
-    vShader.bind()
-
-    // check to see if video is playing and the texture has been created
-    if( textureLoaded === true ) {
-
-        gl.texImage2D(
-            gl.TEXTURE_2D,    // target: you will always want gl.TEXTURE_2D
-            0,                // level of detail: 0 is the base
-            gl.RGBA, gl.RGBA, // color formats
-            gl.FLOAT, // type: the type of texture data; 0-255
-            video             // pixel source: could also be video or image
-        )
-        vShader.uniforms.Video = vide
-        //vShader.uniforms.State = state[ current ].color[0]//.bind()
-        //fillScreen(gl)
-    }
 
     var prevState = state[current]
     var curState = state[current ^= 1]
@@ -168,5 +161,7 @@ shell.on("gl-render", function () {
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
     dShader.uniforms.f = oct1
+    dShader.uniforms.dirx = oct2
+    dShader.uniforms.diry = oct3
     fillScreen(gl)
 })
