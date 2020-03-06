@@ -3382,37 +3382,61 @@ const fillScreen = require('a-big-triangle')
 const createShader = require('gl-shader')
 const toy     = require('gl-toy')
 
-const draw = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform sampler2D vState;\n  uniform vec2 resolution;\n  uniform float dirx;\n  uniform mediump float time;\n  //add a control for the direction\n  //Use rotation?\n  uniform float diry;\n  //add color controls here?\n\n  vec4 blur5(sampler2D image, vec2 uv, vec2 res, vec2 direction) {\n    vec4 color = vec4(0.0);\n    vec2 off1 = vec2(2.3333333333333333) * (direction/tan(time));\n    color += texture2D(image, uv) * 0.29411764705882354;\n    color += texture2D(image, uv + (off1 / res)) * 0.35294117647058826;\n    color += texture2D(image, uv - (off1 / res)) * 0.35294117647058826;\n    return color;\n  }\n\n  void main() {\n     vec2 pos = gl_FragCoord.xy / resolution;\n     //vec4 color = vec4(0.0);\n\n     vec4 blur = blur5( state, pos, resolution, vec2(dirx, diry) );\n     vec4 vid = vec4(1.0);//vec4( texture2D( vState, pos).rgb, 1. );\n     vec4 s = vec4( texture2D( state, pos).rgb, 1. );\n\n    //vec4 color = blur;\n\n     vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);\n\n     gl_FragColor = vec4( color.r, color.g, color.b, 1. );\n     //gl_FragColor = s;\n  }"])
+const draw = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  //uniform sampler2D vState;\n  uniform vec2 resolution;\n  uniform mediump float time;\n  //add a control for the direction\n  //Use rotation?\n  uniform float diry;\n  uniform float dirx;\n  //color controls\n  uniform float cB;\n  uniform float cG;\n  uniform float cR;\n  //use light to impact the blur\n\n  vec4 blur5(sampler2D image, vec2 uv, vec2 res, vec2 direction) {\n    vec4 color = vec4(0.0);\n    vec2 off1 = vec2(2.3333333333333333) * (direction/tan(time));\n    color += texture2D(image, uv) * 0.29411764705882354;\n    color += texture2D(image, uv + (off1 / res)) * 0.35294117647058826;\n    color += texture2D(image, uv - (off1 / res)) * 0.35294117647058826;\n    return color;\n  }\n\n  void main() {\n     vec2 pos = gl_FragCoord.xy / resolution;\n\n     vec4 blur = blur5( state, pos, resolution, vec2(dirx, diry) );\n     vec4 vid = vec4(cR, cG, cB, 1.0);//vec4( texture2D( vState, pos).rgb, 1. );\n     vec4 s = vec4( texture2D( state, pos).rgb, 1. );\n\n     vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);\n\n     gl_FragColor = vec4( color.r, color.g, color.b, 1. );\n     //gl_FragColor = s;\n  }"])
 const vert = glslify(["#define GLSLIFY 1\nattribute vec2 a_position;\n\nvoid main() {\n  gl_Position = vec4( a_position, 0., 1. );\n}"])
-const frag = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform vec2 resolution;\n  uniform float f;\n  //float f=.0545, k=.062, dA = 1., dB = 0.; // coral preset\n  float k = .0635, dA = 1., dB = .5;\n\n  // 2D Random\n  float random (in vec2 st) {\n      return fract(sin(dot(st.xy, vec2(12.9898,78.233)))* 43758.5453123);\n  }\n\n  vec2 get(int x, int y) {\n    return texture2D( state, ( gl_FragCoord.xy + vec2(x, y) ) / resolution ).rg;\n  }\n\n  vec2 run() {\n    vec2 state = get( 0, 0 );\n    float a = state.r;\n    float b = state.g;\n    float sumA = a * -1.;\n    float sumB = b * -1.;\n\n    sumA += get(-1,0).r * .2;\n    sumA += get(-1,-1).r * .05;\n    sumA += get(0,-1).r * .2;\n    sumA += get(1,-1).r * .05;\n    sumA += get(1,0).r * .2;\n    sumA += get(1,1).r * .05;\n    sumA += get(0,1).r * .2;\n    sumA += get(-1,1).r * .05;\n\n    sumB += get(-1,0).g * .2;\n    sumB += get(-1,-1).g * .05;\n    sumB += get(0,-1).g * .2;\n    sumB += get(1,-1).g * .05;\n    sumB += get(1,0).g * .2;\n    sumB += get(1,1).g * .05;\n    sumB += get(0,1).g * .2;\n    sumB += get(-1,1).g * .05;\n\n    state.r = a + dA\n      * sumA -\n      a * b * b +\n      f * (1. - a);\n\n    state.g = b + dB *\n      sumB +\n      a * b * b -\n      ((k+f) * b);\n\n    return state;\n  }\n  void main() {\n    vec2 nextState = run();\n    //Control with input?\n    float b = random(vec2(1.0, 1.0));\n    gl_FragColor = vec4( nextState.r, nextState.g, 0., 1. );\n  }"])
+const frag = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform vec2 resolution;\n  uniform float f;\n  //uniform float k;\n  //float f=.0545, k=.062, dA = 1., dB = 0.; // coral preset\n  float k = .0635;\n  float dA = 1., dB = .5;\n\n  // 2D Random\n  float random (in vec2 st) {\n      return fract(sin(dot(st.xy, vec2(12.9898,78.233)))* 43758.5453123);\n  }\n\n  vec2 get(int x, int y) {\n    return texture2D( state, ( gl_FragCoord.xy + vec2(x, y) ) / resolution ).rg;\n  }\n\n  vec2 run() {\n    vec2 state = get( 0, 0 );\n    float a = state.r;\n    float b = state.g;\n    float sumA = a * -1.;\n    float sumB = b * -1.;\n\n    sumA += get(-1,0).r * .2;\n    sumA += get(-1,-1).r * .05;\n    sumA += get(0,-1).r * .2;\n    sumA += get(1,-1).r * .05;\n    sumA += get(1,0).r * .2;\n    sumA += get(1,1).r * .05;\n    sumA += get(0,1).r * .2;\n    sumA += get(-1,1).r * .05;\n\n    sumB += get(-1,0).g * .2;\n    sumB += get(-1,-1).g * .05;\n    sumB += get(0,-1).g * .2;\n    sumB += get(1,-1).g * .05;\n    sumB += get(1,0).g * .2;\n    sumB += get(1,1).g * .05;\n    sumB += get(0,1).g * .2;\n    sumB += get(-1,1).g * .05;\n\n    state.r = a + dA\n      * sumA -\n      a * b * b +\n      f * (1. - a);\n\n    state.g = b + dB *\n      sumB +\n      a * b * b -\n      ((k+f) * b);\n\n    return state;\n  }\n  void main() {\n    vec2 nextState = run();\n    //Control with input?\n    float b = random(vec2(1.0, 1.0));\n    gl_FragColor = vec4( nextState.r, nextState.g, 0., 1. );\n  }"])
 const vid = glslify(["#ifdef GL_ES\n  precision mediump float;\n#define GLSLIFY 1\n\n  #endif\n\n  uniform sampler2D Video;\n  //uniform sampler2D State;\n  uniform vec2 resolution;\n\n  void main() {\n    // copy color info from texture\n    gl_FragColor = vec4( texture2D( Video, gl_FragCoord.xy / resolution ).rgb, 1. );\n  }"])
 
 var dShader, upShader, vShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, textureLoaded = false
+let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 0.5, oct5 = 0.5, oct6 = 0.5, oct7 = 0.5, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
     //console.log('msg recieved:', msg)
-    if(json.address === '/rotation_vector/r1'){
-        console.log(json.args[0].value)
-       if(Math.abs(json.args[0].value) < 0.099 && Math.abs(json.args[0].value) > 0.04){
-            oct1 = Math.abs(json.args[0].value)
-        } else if(Math.abs(json.args[0].value) > 0.099){
-            oct1 = (Math.abs(json.args[0].value)/10.0) + 0.029
+    /*if(json.address === '/rotation_vector/r1'){
+        //console.log(json.args[0].value)
+       if(Math.abs(json.args[0].value) < 0.5){
+            oct7 = Math.abs(json.args[0].value)
         } else{
-            oct1 = Math.abs(json.args[0].value) + 0.03//0.0457
+            oct7 = 0.5
+        }
+    } */
+    if(json.address === '/light'){
+        //console.log(json.args[0].value)
+        var light = json.args[0].value / 10000.0
+        if( light < 0.099 && light > 0.04){
+            oct1 = Math.abs(json.args[0].value)
+        } else if(light > 0.099){
+            oct1 = 0.07
+        } else{
+            oct1 = 0.0457
         }
     }
 
     if(json.address === '/accelerometer/gravity/z'){
-        console.log(json.args[0].value)
-        oct2 = json.args[0].value
+        console.log("gz" + json.args[0].value)
+        oct2 = Math.abs(json.args[0].value)
+    }
+
+    if(json.address === '/accelerometer/gravity/y'){
+        console.log("gy" + json.args[0].value)
+        oct3 = Math.abs(json.args[0].value)
     }
 
     if(json.address === '/rotation_vector/r4'){
         console.log(json.args[0].value)
-        oct3 = json.args[0].value
+        oct4 = Math.abs(json.args[0].value)
+    }
+
+    if(json.address === '/rotation_vector/r3'){
+        console.log(json.args[0].value)
+        oct5 = Math.abs(json.args[0].value)
+    }
+
+    if(json.address === '/rotation_vector/r2'){
+        console.log(json.args[0].value)
+        oct6 = Math.abs(json.args[0].value)
     }
 
     if(oct1 < 0.039){
@@ -3469,19 +3493,15 @@ shell.on("gl-init", function () {
     var gl = shell.gl
     const canvas = document.querySelector( 'canvas' )
     canvas.width = window.innerWidth
-    //console.log(canvas.width)
     w = canvas.width
     const h = gl.drawingBufferHeight
-    //console.log(w)
 
-    //gl.disable(gl.DEPTH_TEST)
+    gl.disable(gl.DEPTH_TEST)
 
     upShader = createShader(gl, vert, frag)
     dShader = createShader(gl, vert, draw)
-    vShader = createShader(gl, vert, vid)
 
     state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
-    //vide = fbo(gl, [canvas.width,canvas.width])
 
     stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
     var pixelSize = 4
@@ -3523,7 +3543,7 @@ shell.on("tick", function () {
     upShader.uniforms.state = prevState.color[0].bind()
     upShader.uniforms.resolution = prevState.shape
     upShader.uniforms.f = oct1
-    //upShader.uniforms.time = time
+    //upShader.uniforms.k = oct7
 
     fillScreen(gl)
 })
@@ -3537,9 +3557,11 @@ shell.on("gl-render", function () {
     dShader.uniforms.vState = vide
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
-    dShader.uniforms.f = oct1
     dShader.uniforms.dirx = oct2
     dShader.uniforms.diry = oct3
+    dShader.uniforms.cB = oct4
+    dShader.uniforms.cG = oct5
+    dShader.uniforms.cR = oct6
     fillScreen(gl)
 })
 },{"a-big-triangle":10,"gl-fbo":30,"gl-now":32,"gl-shader":33,"gl-toy":41,"glslify":54}],10:[function(require,module,exports){

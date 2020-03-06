@@ -2,8 +2,10 @@ precision mediump float;
   uniform sampler2D state;
   uniform vec2 resolution;
   uniform float f;
+  //uniform float k;
   //float f=.0545, k=.062, dA = 1., dB = 0.; // coral preset
-  float k = .0635, dA = 1., dB = .5;
+  float k = .0635;
+  float dA = 1., dB = .5;
 
   // 2D Random
   float random (in vec2 st) {

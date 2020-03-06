@@ -1,13 +1,17 @@
 precision mediump float;
   uniform sampler2D state;
-  uniform sampler2D vState;
+  //uniform sampler2D vState;
   uniform vec2 resolution;
-  uniform float dirx;
   uniform mediump float time;
   //add a control for the direction
   //Use rotation?
   uniform float diry;
-  //add color controls here?
+  uniform float dirx;
+  //color controls
+  uniform float cB;
+  uniform float cG;
+  uniform float cR;
+  //use light to impact the blur
 
   vec4 blur5(sampler2D image, vec2 uv, vec2 res, vec2 direction) {
     vec4 color = vec4(0.0);
@@ -20,13 +24,10 @@ precision mediump float;
 
   void main() {
      vec2 pos = gl_FragCoord.xy / resolution;
-     //vec4 color = vec4(0.0);
 
      vec4 blur = blur5( state, pos, resolution, vec2(dirx, diry) );
-     vec4 vid = vec4(1.0);//vec4( texture2D( vState, pos).rgb, 1. );
+     vec4 vid = vec4(cR, cG, cB, 1.0);//vec4( texture2D( vState, pos).rgb, 1. );
      vec4 s = vec4( texture2D( state, pos).rgb, 1. );
-
-    //vec4 color = blur;
 
      vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);
 

@@ -12,30 +12,54 @@ const vid = glslify('./video.glsl')
 
 var dShader, upShader, vShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, textureLoaded = false
+let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 0.5, oct5 = 0.5, oct6 = 0.5, oct7 = 0.5, textureLoaded = false
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
     //console.log('msg recieved:', msg)
-    if(json.address === '/rotation_vector/r1'){
-        console.log(json.args[0].value)
-       if(Math.abs(json.args[0].value) < 0.099 && Math.abs(json.args[0].value) > 0.04){
-            oct1 = Math.abs(json.args[0].value)
-        } else if(Math.abs(json.args[0].value) > 0.099){
-            oct1 = (Math.abs(json.args[0].value)/10.0) + 0.029
+    /*if(json.address === '/rotation_vector/r1'){
+        //console.log(json.args[0].value)
+       if(Math.abs(json.args[0].value) < 0.5){
+            oct7 = Math.abs(json.args[0].value)
         } else{
-            oct1 = Math.abs(json.args[0].value) + 0.03//0.0457
+            oct7 = 0.5
+        }
+    } */
+    if(json.address === '/light'){
+        //console.log(json.args[0].value)
+        var light = json.args[0].value / 10000.0
+        if( light < 0.099 && light > 0.04){
+            oct1 = Math.abs(json.args[0].value)
+        } else if(light > 0.099){
+            oct1 = 0.07
+        } else{
+            oct1 = 0.0457
         }
     }
 
     if(json.address === '/accelerometer/gravity/z'){
-        console.log(json.args[0].value)
-        oct2 = json.args[0].value
+        console.log("gz" + json.args[0].value)
+        oct2 = Math.abs(json.args[0].value)
+    }
+
+    if(json.address === '/accelerometer/gravity/y'){
+        console.log("gy" + json.args[0].value)
+        oct3 = Math.abs(json.args[0].value)
     }
 
     if(json.address === '/rotation_vector/r4'){
         console.log(json.args[0].value)
-        oct3 = json.args[0].value
+        oct4 = Math.abs(json.args[0].value)
+    }
+
+    if(json.address === '/rotation_vector/r3'){
+        console.log(json.args[0].value)
+        oct5 = Math.abs(json.args[0].value)
+    }
+
+    if(json.address === '/rotation_vector/r2'){
+        console.log(json.args[0].value)
+        oct6 = Math.abs(json.args[0].value)
     }
 
     if(oct1 < 0.039){
@@ -92,19 +116,15 @@ shell.on("gl-init", function () {
     var gl = shell.gl
     const canvas = document.querySelector( 'canvas' )
     canvas.width = window.innerWidth
-    //console.log(canvas.width)
     w = canvas.width
     const h = gl.drawingBufferHeight
-    //console.log(w)
 
-    //gl.disable(gl.DEPTH_TEST)
+    gl.disable(gl.DEPTH_TEST)
 
     upShader = createShader(gl, vert, frag)
     dShader = createShader(gl, vert, draw)
-    vShader = createShader(gl, vert, vid)
 
     state =[fbo(gl, [canvas.width,canvas.width]), fbo(gl, [canvas.width,canvas.width])]
-    //vide = fbo(gl, [canvas.width,canvas.width])
 
     stateSize = Math.pow( 2, Math.floor(Math.log(canvas.width)/Math.log(2)) )
     var pixelSize = 4
@@ -146,7 +166,7 @@ shell.on("tick", function () {
     upShader.uniforms.state = prevState.color[0].bind()
     upShader.uniforms.resolution = prevState.shape
     upShader.uniforms.f = oct1
-    //upShader.uniforms.time = time
+    //upShader.uniforms.k = oct7
 
     fillScreen(gl)
 })
@@ -160,8 +180,10 @@ shell.on("gl-render", function () {
     dShader.uniforms.vState = vide
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
-    dShader.uniforms.f = oct1
     dShader.uniforms.dirx = oct2
     dShader.uniforms.diry = oct3
+    dShader.uniforms.cB = oct4
+    dShader.uniforms.cG = oct5
+    dShader.uniforms.cR = oct6
     fillScreen(gl)
 })
