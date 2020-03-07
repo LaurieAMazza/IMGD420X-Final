@@ -8,33 +8,56 @@ const toy     = require('gl-toy')
 const draw = glslify('./draw.glsl')
 const vert = glslify('./vert.glsl')
 const frag = glslify('./frag.glsl')
-const vid = glslify('./video.glsl')
 
-var dShader, upShader, vShader, state, vide, stateSize, current =0, time = 0, w
+var dShader, upShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 0.5, oct5 = 0.5, oct6 = 0.5, oct7 = 0.5, textureLoaded = false
+let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 1., oct5 = 1., oct6 = 1., oct7 = 0.0635
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
     //console.log('msg recieved:', msg)
-    /*if(json.address === '/rotation_vector/r1'){
-        //console.log(json.args[0].value)
-       if(Math.abs(json.args[0].value) < 0.5){
-            oct7 = Math.abs(json.args[0].value)
-        } else{
-            oct7 = 0.5
-        }
-    } */
+    //The more light the device is exposed to, the greater the feedrate will be
     if(json.address === '/light'){
-        //console.log(json.args[0].value)
-        var light = json.args[0].value / 10000.0
-        if( light < 0.099 && light > 0.04){
-            oct1 = Math.abs(json.args[0].value)
-        } else if(light > 0.099){
+        console.log("f" + json.args[0].value)
+        var light = json.args[0].value
+
+        //fixes the signal to usable numbers
+        if (light > 1000){
+            light = json.args[0].value / 100000.0
+        } else if (light > 100){
+            light = json.args[0].value / 10000.0
+        } else if(light > 10){
+            light = json.args[0].value / 1000.0
+        } else {
+            light = json.args[0].value / 100.0
+        }
+
+        //Limits feedrate to amounts that won't break the simulation
+        /*if( light < 0.07 && light > 0.04){
+            oct1 = light
+        } else if(light > 0.07){
             oct1 = 0.07
         } else{
             oct1 = 0.0457
-        }
+        }*/
+    }
+
+    //This makes it so if you quickly shake the phone side to s
+    if(json.address === '/accelerometer/linear/x'){
+        console.log("k" + json.args[0].value)
+       if(Math.abs(json.args[0].value) > 10){
+           oct7 = Math.abs(json.args[0].value)/1000.0
+       } else if(Math.abs(json.args[0].value) > 1){
+           oct7 = Math.abs(json.args[0].value)/100.0
+       } else {
+           oct7 = Math.abs(json.args[0].value)
+       }
+
+       /* if(oct7 < 0.04){
+            oct7 = 0.04
+        } else if(oct7 > 0.0635){
+            oct7 = 0.0635
+        }*/
     }
 
     if(json.address === '/accelerometer/gravity/z'){
@@ -47,69 +70,29 @@ ws.onmessage = function(msg){
         oct3 = Math.abs(json.args[0].value)
     }
 
-    if(json.address === '/rotation_vector/r4'){
-        console.log(json.args[0].value)
+    //Rotate the phone to "blend" the colors
+    if(json.address === '/rotation_vector/r1'){
+        //console.log(json.args[0].value)
         oct4 = Math.abs(json.args[0].value)
     }
 
-    if(json.address === '/rotation_vector/r3'){
-        console.log(json.args[0].value)
+    if(json.address === '/rotation_vector/r2'){
+        //console.log(json.args[0].value)
         oct5 = Math.abs(json.args[0].value)
     }
 
-    if(json.address === '/rotation_vector/r2'){
-        console.log(json.args[0].value)
+    if(json.address === '/rotation_vector/r3'){
+        //console.log(json.args[0].value)
         oct6 = Math.abs(json.args[0].value)
     }
 
-    if(oct1 < 0.039){
-        oct1 = 0.04
-    } else if(oct1 > 0.075){
-        oct1 = 0.06
-    }
-    console.log(oct1)
-}
+    if(Math.abs(oct7 - oct1) < 0.0178 || (oct7 - oct1) > 0.02){
+            oct7 = oct1 + 0.0178
+      }
 
-function getVideo(gl) {
-    video = document.createElement( 'video' )
+    console.log("f" + oct1)
 
-    navigator.mediaDevices.getUserMedia({
-        video:true
-    }).then( stream => {
-        video.srcObject = stream
-        video.play()
-        makeTexture(gl)
-    })
-
-    return video
-}
-
-function makeTexture(gl) {
-    // create an OpenGL texture object
-    vide = gl.createTexture()
-
-    // this tells OpenGL which texture object to use for subsequent operations
-    gl.bindTexture( gl.TEXTURE_2D, vide )
-    //l.bindTexture(gl.TEXTURE_2D, vide.color[0])
-
-    // since canvas draws from the top and shaders draw from the bottom, we
-    // have to flip our canvas when using it as a shader.
-    gl.pixelStorei( gl.UNPACK_FLIP_Y_WEBGL, true )
-
-    // how to map when texture element is more than one pixel
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR )
-    // how to map when texture element is less than one pixel
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR )
-
-    // you must have these properties defined for the video texture to
-    // work correctly
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE )
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE )
-
-    gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, w, w, 0, gl.RGBA, gl.FLOAT, null )
-
-    // let our render loop know when the texture is ready
-    textureLoaded = true
+    console.log("k" + oct7)
 }
 
 shell.on("gl-init", function () {
@@ -150,8 +133,6 @@ shell.on("gl-init", function () {
     gl.texSubImage2D(
         gl.TEXTURE_2D, 0, 0, 0, stateSize, stateSize, gl.RGBA, gl.FLOAT, initial_conditions
     )
-
-    //video = getVideo(gl)
 })
 
 shell.on("tick", function () {
@@ -166,7 +147,7 @@ shell.on("tick", function () {
     upShader.uniforms.state = prevState.color[0].bind()
     upShader.uniforms.resolution = prevState.shape
     upShader.uniforms.f = oct1
-    //upShader.uniforms.k = oct7
+    upShader.uniforms.k = oct7
 
     fillScreen(gl)
 })
