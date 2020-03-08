@@ -3,8 +3,6 @@ precision mediump float;
   uniform vec2 resolution;
   uniform float f;
   uniform float k;
-  //float f=.0545, k=.062, dA = 1., dB = 0.; // coral preset
-  //float k = .0635;
   float dA = 1., dB = .5;
 
   // 2D Random
@@ -55,7 +53,5 @@ precision mediump float;
   }
   void main() {
     vec2 nextState = run();
-    //Control with input?
-    float b = random(vec2(1.0, 1.0));
     gl_FragColor = vec4( nextState.r, nextState.g, 0., 1. );
   }

@@ -3,7 +3,6 @@ var shell = require('gl-now')()
 const fbo = require('gl-fbo')
 const fillScreen = require('a-big-triangle')
 const createShader = require('gl-shader')
-const toy     = require('gl-toy')
 
 const draw = glslify('./draw.glsl')
 const vert = glslify('./vert.glsl')
@@ -11,53 +10,37 @@ const frag = glslify('./frag.glsl')
 
 var dShader, upShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 1., oct5 = 1., oct6 = 1., oct7 = 0.0635
+let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 1., oct5 = 1., oct6 = 1., oct7 = 0.0635, light = 0.0457
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
     //console.log('msg recieved:', msg)
-    //The more light the device is exposed to, the greater the feedrate will be
+    //The more light the device is exposed to, the greater the blur will be
     if(json.address === '/light'){
-        console.log("f" + json.args[0].value)
-        var light = json.args[0].value
+        light = json.args[0].value
 
         //fixes the signal to usable numbers
-        if (light > 1000){
-            light = json.args[0].value / 100000.0
-        } else if (light > 100){
-            light = json.args[0].value / 10000.0
-        } else if(light > 10){
+        if (light > 999.99){
             light = json.args[0].value / 1000.0
-        } else {
+        } else if (light > 99.99){
             light = json.args[0].value / 100.0
+        } else if(light > 9.99){
+            light = json.args[0].value / 10.0
+        } else {
+            light = json.args[0].value
         }
-
-        //Limits feedrate to amounts that won't break the simulation
-        /*if( light < 0.07 && light > 0.04){
-            oct1 = light
-        } else if(light > 0.07){
-            oct1 = 0.07
-        } else{
-            oct1 = 0.0457
-        }*/
     }
 
-    //This makes it so if you quickly shake the phone side to s
+    //This makes it so if you shake the phone side to side, the kill rate increases
     if(json.address === '/accelerometer/linear/x'){
         console.log("k" + json.args[0].value)
-       if(Math.abs(json.args[0].value) > 10){
-           oct7 = Math.abs(json.args[0].value)/1000.0
-       } else if(Math.abs(json.args[0].value) > 1){
-           oct7 = Math.abs(json.args[0].value)/100.0
-       } else {
-           oct7 = Math.abs(json.args[0].value)
-       }
-
-       /* if(oct7 < 0.04){
-            oct7 = 0.04
-        } else if(oct7 > 0.0635){
-            oct7 = 0.0635
-        }*/
+        if(Math.abs(json.args[0].value) > 10){
+            oct7 = Math.abs(json.args[0].value)/1000.0
+        } else if(Math.abs(json.args[0].value) > 1){
+            oct7 = Math.abs(json.args[0].value)/100.0
+        } else {
+            oct7 = Math.abs(json.args[0].value)
+        }
     }
 
     if(json.address === '/accelerometer/gravity/z'){
@@ -87,8 +70,8 @@ ws.onmessage = function(msg){
     }
 
     if(Math.abs(oct7 - oct1) < 0.0178 || (oct7 - oct1) > 0.02){
-            oct7 = oct1 + 0.0178
-      }
+        oct7 = oct1 + 0.0178
+    }
 
     console.log("f" + oct1)
 
@@ -166,5 +149,6 @@ shell.on("gl-render", function () {
     dShader.uniforms.cB = oct4
     dShader.uniforms.cG = oct5
     dShader.uniforms.cR = oct6
+    dShader.uniforms.blr = light
     fillScreen(gl)
 })

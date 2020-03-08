@@ -4,61 +4,44 @@ var shell = require('gl-now')()
 const fbo = require('gl-fbo')
 const fillScreen = require('a-big-triangle')
 const createShader = require('gl-shader')
-const toy     = require('gl-toy')
 
-const draw = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  //uniform sampler2D vState;\n  uniform vec2 resolution;\n  uniform mediump float time;\n  //add a control for the direction\n  //Use rotation?\n  uniform float diry;\n  uniform float dirx;\n  //color controls\n  uniform float cB;\n  uniform float cG;\n  uniform float cR;\n  //use light to impact the blur\n\n  vec4 blur5(sampler2D image, vec2 uv, vec2 res, vec2 direction) {\n    vec4 color = vec4(0.0);\n    vec2 off1 = vec2(2.3333333333333333) * (direction/tan(time));\n    color += texture2D(image, uv) * 0.29411764705882354;\n    color += texture2D(image, uv + (off1 / res)) * 0.35294117647058826;\n    color += texture2D(image, uv - (off1 / res)) * 0.35294117647058826;\n    return color;\n  }\n\n  void main() {\n     vec2 pos = gl_FragCoord.xy / resolution;\n\n     vec4 blur = blur5( state, pos, resolution, vec2(dirx, diry) );\n     vec4 vid = vec4(cR, cG, cB, 1.0);//vec4( texture2D( vState, pos).rgb, 1. );\n     vec4 s = vec4( texture2D( state, pos).rgb, 1. );\n\n     vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);\n\n     gl_FragColor = vec4( color.r, color.g, color.b, 1. );\n     //gl_FragColor = s;\n  }"])
+const draw = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform vec2 resolution;\n  uniform mediump float time;\n  //control for the direction\n  uniform float diry;\n  uniform float dirx;\n  //color controls\n  uniform float cB;\n  uniform float cG;\n  uniform float cR;\n  //use light to impact the blur\n  uniform float blr;\n\n  vec4 blur5(sampler2D image, vec2 uv, vec2 res, vec2 direction) {\n    vec4 color = vec4(0.0);\n    vec2 off1 = vec2(blr) * (direction/tan(time));\n    color += texture2D(image, uv) * 0.29411764705882354;\n    color += texture2D(image, uv + (off1 / res)) * 0.35294117647058826;\n    color += texture2D(image, uv - (off1 / res)) * 0.35294117647058826;\n    return color;\n  }\n\n  void main() {\n     vec2 pos = gl_FragCoord.xy / resolution;\n\n     vec4 blur = blur5( state, pos, resolution, vec2(dirx, diry) );\n     vec4 vid = vec4(cR, cG, cB, 1.0);//vec4( texture2D( vState, pos).rgb, 1. );\n     //vec4 s = vec4( texture2D( state, pos).rgb, 1. );\n\n     vec4 color = vec4(vid.r * (1. - blur.r), vid.g * (1. - blur.r), vid.b * (1. - blur.r), 1.);\n\n     gl_FragColor = vec4( color.r, color.g, color.b, 1. );\n  }"])
 const vert = glslify(["#define GLSLIFY 1\nattribute vec2 a_position;\n\nvoid main() {\n  gl_Position = vec4( a_position, 0., 1. );\n}"])
-const frag = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform vec2 resolution;\n  uniform float f;\n  uniform float k;\n  //float f=.0545, k=.062, dA = 1., dB = 0.; // coral preset\n  //float k = .0635;\n  float dA = 1., dB = .5;\n\n  // 2D Random\n  float random (in vec2 st) {\n      return fract(sin(dot(st.xy, vec2(12.9898,78.233)))* 43758.5453123);\n  }\n\n  vec2 get(int x, int y) {\n    return texture2D( state, ( gl_FragCoord.xy + vec2(x, y) ) / resolution ).rg;\n  }\n\n  vec2 run() {\n    vec2 state = get( 0, 0 );\n    float a = state.r;\n    float b = state.g;\n    float sumA = a * -1.;\n    float sumB = b * -1.;\n\n    sumA += get(-1,0).r * .2;\n    sumA += get(-1,-1).r * .05;\n    sumA += get(0,-1).r * .2;\n    sumA += get(1,-1).r * .05;\n    sumA += get(1,0).r * .2;\n    sumA += get(1,1).r * .05;\n    sumA += get(0,1).r * .2;\n    sumA += get(-1,1).r * .05;\n\n    sumB += get(-1,0).g * .2;\n    sumB += get(-1,-1).g * .05;\n    sumB += get(0,-1).g * .2;\n    sumB += get(1,-1).g * .05;\n    sumB += get(1,0).g * .2;\n    sumB += get(1,1).g * .05;\n    sumB += get(0,1).g * .2;\n    sumB += get(-1,1).g * .05;\n\n    state.r = a + dA\n      * sumA -\n      a * b * b +\n      f * (1. - a);\n\n    state.g = b + dB *\n      sumB +\n      a * b * b -\n      ((k+f) * b);\n\n    return state;\n  }\n  void main() {\n    vec2 nextState = run();\n    //Control with input?\n    float b = random(vec2(1.0, 1.0));\n    gl_FragColor = vec4( nextState.r, nextState.g, 0., 1. );\n  }"])
+const frag = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform sampler2D state;\n  uniform vec2 resolution;\n  uniform float f;\n  uniform float k;\n  float dA = 1., dB = .5;\n\n  // 2D Random\n  float random (in vec2 st) {\n      return fract(sin(dot(st.xy, vec2(12.9898,78.233)))* 43758.5453123);\n  }\n\n  vec2 get(int x, int y) {\n    return texture2D( state, ( gl_FragCoord.xy + vec2(x, y) ) / resolution ).rg;\n  }\n\n  vec2 run() {\n    vec2 state = get( 0, 0 );\n    float a = state.r;\n    float b = state.g;\n    float sumA = a * -1.;\n    float sumB = b * -1.;\n\n    sumA += get(-1,0).r * .2;\n    sumA += get(-1,-1).r * .05;\n    sumA += get(0,-1).r * .2;\n    sumA += get(1,-1).r * .05;\n    sumA += get(1,0).r * .2;\n    sumA += get(1,1).r * .05;\n    sumA += get(0,1).r * .2;\n    sumA += get(-1,1).r * .05;\n\n    sumB += get(-1,0).g * .2;\n    sumB += get(-1,-1).g * .05;\n    sumB += get(0,-1).g * .2;\n    sumB += get(1,-1).g * .05;\n    sumB += get(1,0).g * .2;\n    sumB += get(1,1).g * .05;\n    sumB += get(0,1).g * .2;\n    sumB += get(-1,1).g * .05;\n\n    state.r = a + dA\n      * sumA -\n      a * b * b +\n      f * (1. - a);\n\n    state.g = b + dB *\n      sumB +\n      a * b * b -\n      ((k+f) * b);\n\n    return state;\n  }\n  void main() {\n    vec2 nextState = run();\n    gl_FragColor = vec4( nextState.r, nextState.g, 0., 1. );\n  }"])
 
 var dShader, upShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 1., oct5 = 1., oct6 = 1., oct7 = 0.0635
+let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 1., oct5 = 1., oct6 = 1., oct7 = 0.0635, light = 0.0457
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
     //console.log('msg recieved:', msg)
-    //The more light the device is exposed to, the greater the feedrate will be
+    //The more light the device is exposed to, the greater the blur will be
     if(json.address === '/light'){
-        console.log("f" + json.args[0].value)
-        var light = json.args[0].value
+        light = json.args[0].value
 
         //fixes the signal to usable numbers
-        if (light > 1000){
-            light = json.args[0].value / 100000.0
-        } else if (light > 100){
-            light = json.args[0].value / 10000.0
-        } else if(light > 10){
+        if (light > 999.99){
             light = json.args[0].value / 1000.0
-        } else {
+        } else if (light > 99.99){
             light = json.args[0].value / 100.0
+        } else if(light > 9.99){
+            light = json.args[0].value / 10.0
+        } else {
+            light = json.args[0].value
         }
-
-        //Limits feedrate to amounts that won't break the simulation
-        /*if( light < 0.07 && light > 0.04){
-            oct1 = light
-        } else if(light > 0.07){
-            oct1 = 0.07
-        } else{
-            oct1 = 0.0457
-        }*/
     }
 
-    //This makes it so if you quickly shake the phone side to s
+    //This makes it so if you shake the phone side to side, the kill rate increases
     if(json.address === '/accelerometer/linear/x'){
         console.log("k" + json.args[0].value)
-       if(Math.abs(json.args[0].value) > 10){
-           oct7 = Math.abs(json.args[0].value)/1000.0
-       } else if(Math.abs(json.args[0].value) > 1){
-           oct7 = Math.abs(json.args[0].value)/100.0
-       } else {
-           oct7 = Math.abs(json.args[0].value)
-       }
-
-       /* if(oct7 < 0.04){
-            oct7 = 0.04
-        } else if(oct7 > 0.0635){
-            oct7 = 0.0635
-        }*/
+        if(Math.abs(json.args[0].value) > 10){
+            oct7 = Math.abs(json.args[0].value)/1000.0
+        } else if(Math.abs(json.args[0].value) > 1){
+            oct7 = Math.abs(json.args[0].value)/100.0
+        } else {
+            oct7 = Math.abs(json.args[0].value)
+        }
     }
 
     if(json.address === '/accelerometer/gravity/z'){
@@ -88,8 +71,8 @@ ws.onmessage = function(msg){
     }
 
     if(Math.abs(oct7 - oct1) < 0.0178 || (oct7 - oct1) > 0.02){
-            oct7 = oct1 + 0.0178
-      }
+        oct7 = oct1 + 0.0178
+    }
 
     console.log("f" + oct1)
 
@@ -167,9 +150,10 @@ shell.on("gl-render", function () {
     dShader.uniforms.cB = oct4
     dShader.uniforms.cG = oct5
     dShader.uniforms.cR = oct6
+    dShader.uniforms.blr = light
     fillScreen(gl)
 })
-},{"a-big-triangle":2,"gl-fbo":25,"gl-now":27,"gl-shader":28,"gl-toy":36,"glslify":49}],2:[function(require,module,exports){
+},{"a-big-triangle":2,"gl-fbo":22,"gl-now":24,"gl-shader":25,"glslify":45}],2:[function(require,module,exports){
 'use strict'
 
 var weakMap      = typeof WeakMap === 'undefined' ? require('weak-map') : WeakMap
@@ -200,7 +184,7 @@ function createABigTriangle(gl) {
 
 module.exports = createABigTriangle
 
-},{"gl-buffer":21,"gl-vao":40,"weak-map":67}],3:[function(require,module,exports){
+},{"gl-buffer":19,"gl-vao":36,"weak-map":62}],3:[function(require,module,exports){
 var padLeft = require('pad-left')
 
 module.exports = addLineNumbers
@@ -218,7 +202,7 @@ function addLineNumbers (string, start, delim) {
   }).join('\n')
 }
 
-},{"pad-left":56}],4:[function(require,module,exports){
+},{"pad-left":52}],4:[function(require,module,exports){
 module.exports = function _atob(str) {
   return atob(str)
 }
@@ -2973,57 +2957,7 @@ var hexSliceLookupTable = (function () {
 })()
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":5,"buffer":9,"ieee754":50}],10:[function(require,module,exports){
-var size = require('element-size')
-
-module.exports = fit
-
-var scratch = new Float32Array(2)
-
-function fit(canvas, parent, scale) {
-  var isSVG = canvas.nodeName.toUpperCase() === 'SVG'
-
-  canvas.style.position = canvas.style.position || 'absolute'
-  canvas.style.top = 0
-  canvas.style.left = 0
-
-  resize.scale  = parseFloat(scale || 1)
-  resize.parent = parent
-
-  return resize()
-
-  function resize() {
-    var p = resize.parent || canvas.parentNode
-    if (typeof p === 'function') {
-      var dims   = p(scratch) || scratch
-      var width  = dims[0]
-      var height = dims[1]
-    } else
-    if (p && p !== document.body) {
-      var psize  = size(p)
-      var width  = psize[0]|0
-      var height = psize[1]|0
-    } else {
-      var width  = window.innerWidth
-      var height = window.innerHeight
-    }
-
-    if (isSVG) {
-      canvas.setAttribute('width', width * resize.scale + 'px')
-      canvas.setAttribute('height', height * resize.scale + 'px')
-    } else {
-      canvas.width = width * resize.scale
-      canvas.height = height * resize.scale
-    }
-
-    canvas.style.width = width + 'px'
-    canvas.style.height = height + 'px'
-
-    return resize
-  }
-}
-
-},{"element-size":16}],11:[function(require,module,exports){
+},{"base64-js":5,"buffer":9,"ieee754":46}],10:[function(require,module,exports){
 "use strict"
 
 var createThunk = require("./lib/thunk.js")
@@ -3134,7 +3068,7 @@ function compileCwise(user_args) {
 
 module.exports = compileCwise
 
-},{"./lib/thunk.js":13}],12:[function(require,module,exports){
+},{"./lib/thunk.js":12}],11:[function(require,module,exports){
 "use strict"
 
 var uniq = require("uniq")
@@ -3494,7 +3428,7 @@ function generateCWiseOp(proc, typesig) {
 }
 module.exports = generateCWiseOp
 
-},{"uniq":62}],13:[function(require,module,exports){
+},{"uniq":57}],12:[function(require,module,exports){
 "use strict"
 
 // The function below is called when constructing a cwise function object, and does the following:
@@ -3582,7 +3516,7 @@ function createThunk(proc) {
 
 module.exports = createThunk
 
-},{"./compile.js":12}],14:[function(require,module,exports){
+},{"./compile.js":11}],13:[function(require,module,exports){
 /*!
   * domready (c) Dustin Diaz 2014 - License MIT
   */
@@ -3614,7 +3548,7 @@ module.exports = createThunk
 
 });
 
-},{}],15:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 "use strict"
 
 function dupe_array(count, value, i) {
@@ -3664,43 +3598,7 @@ function dupe(count, value) {
 }
 
 module.exports = dupe
-},{}],16:[function(require,module,exports){
-module.exports = getSize
-
-function getSize(element) {
-  // Handle cases where the element is not already
-  // attached to the DOM by briefly appending it
-  // to document.body, and removing it again later.
-  if (element === window || element === document.body) {
-    return [window.innerWidth, window.innerHeight]
-  }
-
-  if (!element.parentNode) {
-    var temporary = true
-    document.body.appendChild(element)
-  }
-
-  var bounds = element.getBoundingClientRect()
-  var styles = getComputedStyle(element)
-  var height = (bounds.height|0)
-    + parse(styles.getPropertyValue('margin-top'))
-    + parse(styles.getPropertyValue('margin-bottom'))
-  var width  = (bounds.width|0)
-    + parse(styles.getPropertyValue('margin-left'))
-    + parse(styles.getPropertyValue('margin-right'))
-
-  if (temporary) {
-    document.body.removeChild(element)
-  }
-
-  return [width, height]
-}
-
-function parse(prop) {
-  return parseFloat(prop) || 0
-}
-
-},{}],17:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 if(typeof window.performance === "object") {
   if(window.performance.now) {
     module.exports = function() { return window.performance.now() }
@@ -3713,7 +3611,7 @@ if(typeof window.performance === "object") {
   module.exports = function() { return (new Date()).getTime() }
 }
 
-},{}],18:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 //Adapted from here: https://developer.mozilla.org/en-US/docs/Web/Reference/Events/wheel?redirectlocale=en-US&redirectslug=DOM%2FMozilla_event_reference%2Fwheel
 
 var prefix = "", _addEventListener, onwheel, support;
@@ -3773,7 +3671,7 @@ module.exports = function( elem, callback, useCapture ) {
     _addWheelListener( elem, "MozMousePixelScroll", callback, useCapture );
   }
 };
-},{}],19:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 // http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
  
@@ -3803,7 +3701,7 @@ if (!window.cancelAnimationFrame)
         clearTimeout(id);
     };
 
-},{}],20:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 "use strict"
 
 var EventEmitter = require("events").EventEmitter
@@ -4546,7 +4444,7 @@ function createShell(options) {
 
 module.exports = createShell
 
-},{"./lib/hrtime-polyfill.js":17,"./lib/mousewheel-polyfill.js":18,"./lib/raf-polyfill.js":19,"binary-search-bounds":6,"domready":14,"events":8,"invert-hash":51,"iota-array":52,"uniq":62,"util":65,"vkey":66}],21:[function(require,module,exports){
+},{"./lib/hrtime-polyfill.js":15,"./lib/mousewheel-polyfill.js":16,"./lib/raf-polyfill.js":17,"binary-search-bounds":6,"domready":13,"events":8,"invert-hash":47,"iota-array":48,"uniq":57,"util":60,"vkey":61}],19:[function(require,module,exports){
 "use strict"
 
 var pool = require("typedarray-pool")
@@ -4700,7 +4598,7 @@ function createBuffer(gl, data, type, usage) {
 
 module.exports = createBuffer
 
-},{"ndarray":55,"ndarray-ops":54,"typedarray-pool":61}],22:[function(require,module,exports){
+},{"ndarray":51,"ndarray-ops":50,"typedarray-pool":56}],20:[function(require,module,exports){
 module.exports = {
   0: 'NONE',
   1: 'ONE',
@@ -5000,47 +4898,14 @@ module.exports = {
   37444: 'BROWSER_DEFAULT_WEBGL'
 }
 
-},{}],23:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 var gl10 = require('./1.0/numbers')
 
 module.exports = function lookupConstant (number) {
   return gl10[number]
 }
 
-},{"./1.0/numbers":22}],24:[function(require,module,exports){
-var raf = require('raf-component')
-
-module.exports = createContext
-
-function createContext(canvas, opts, render) {
-  if (typeof opts === 'function') {
-    render = opts
-    opts = {}
-  } else {
-    opts = opts || {}
-  }
-
-  var gl = (
-    canvas.getContext('webgl', opts) ||
-    canvas.getContext('webgl-experimental', opts) ||
-    canvas.getContext('experimental-webgl', opts)
-  )
-
-  if (!gl) {
-    throw new Error('Unable to initialize WebGL')
-  }
-
-  if (render) raf(tick)
-
-  return gl
-
-  function tick() {
-    render(gl)
-    raf(tick)
-  }
-}
-
-},{"raf-component":58}],25:[function(require,module,exports){
+},{"./1.0/numbers":20}],22:[function(require,module,exports){
 'use strict'
 
 var createTexture = require('gl-texture2d')
@@ -5507,7 +5372,7 @@ function createFBO(gl, width, height, options) {
     WEBGL_draw_buffers)
 }
 
-},{"gl-texture2d":35}],26:[function(require,module,exports){
+},{"gl-texture2d":32}],23:[function(require,module,exports){
 
 var sprintf = require('sprintf-js').sprintf;
 var glConstants = require('gl-constants/lookup');
@@ -5562,7 +5427,7 @@ function formatCompilerError(errLog, src, type) {
 }
 
 
-},{"add-line-numbers":3,"gl-constants/lookup":23,"glsl-shader-name":41,"sprintf-js":60}],27:[function(require,module,exports){
+},{"add-line-numbers":3,"gl-constants/lookup":21,"glsl-shader-name":37,"sprintf-js":55}],24:[function(require,module,exports){
 "use strict"
 
 var makeGameShell = require("game-shell")
@@ -5705,7 +5570,7 @@ function createGLShell(options) {
 }
 
 module.exports = createGLShell
-},{"game-shell":20,"webglew":71}],28:[function(require,module,exports){
+},{"game-shell":18,"webglew":66}],25:[function(require,module,exports){
 'use strict'
 
 var createUniformWrapper   = require('./lib/create-uniforms')
@@ -5971,7 +5836,7 @@ function createShader(
 
 module.exports = createShader
 
-},{"./lib/GLError":29,"./lib/create-attributes":30,"./lib/create-uniforms":31,"./lib/reflect":32,"./lib/runtime-reflect":33,"./lib/shader-cache":34}],29:[function(require,module,exports){
+},{"./lib/GLError":26,"./lib/create-attributes":27,"./lib/create-uniforms":28,"./lib/reflect":29,"./lib/runtime-reflect":30,"./lib/shader-cache":31}],26:[function(require,module,exports){
 function GLError (rawError, shortMessage, longMessage) {
     this.shortMessage = shortMessage || ''
     this.longMessage = longMessage || ''
@@ -5986,7 +5851,7 @@ GLError.prototype.name = 'GLError'
 GLError.prototype.constructor = GLError
 module.exports = GLError
 
-},{}],30:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 'use strict'
 
 module.exports = createAttributeWrapper
@@ -6251,7 +6116,7 @@ function createAttributeWrapper(
   return obj
 }
 
-},{"./GLError":29}],31:[function(require,module,exports){
+},{"./GLError":26}],28:[function(require,module,exports){
 'use strict'
 
 var coallesceUniforms = require('./reflect')
@@ -6444,7 +6309,7 @@ function createUniformWrapper(gl, wrapper, uniforms, locations) {
   }
 }
 
-},{"./GLError":29,"./reflect":32}],32:[function(require,module,exports){
+},{"./GLError":26,"./reflect":29}],29:[function(require,module,exports){
 'use strict'
 
 module.exports = makeReflectTypes
@@ -6502,7 +6367,7 @@ function makeReflectTypes(uniforms, useIndex) {
   }
   return obj
 }
-},{}],33:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 'use strict'
 
 exports.uniforms    = runtimeUniforms
@@ -6582,7 +6447,7 @@ function runtimeAttributes(gl, program) {
   return result
 }
 
-},{}],34:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 'use strict'
 
 exports.shader   = getShaderReference
@@ -6720,7 +6585,7 @@ function createProgram(gl, vref, fref, attribs, locations) {
   return getCache(gl).getProgram(vref, fref, attribs, locations)
 }
 
-},{"./GLError":29,"gl-format-compiler-error":26,"weakmap-shim":70}],35:[function(require,module,exports){
+},{"./GLError":26,"gl-format-compiler-error":23,"weakmap-shim":65}],32:[function(require,module,exports){
 'use strict'
 
 var ndarray = require('ndarray')
@@ -7283,50 +7148,7 @@ function createTexture2D(gl) {
   throw new Error('gl-texture2d: Invalid arguments for texture2d constructor')
 }
 
-},{"ndarray":55,"ndarray-ops":54,"typedarray-pool":61}],36:[function(require,module,exports){
-'use strict';
-
-var triangle = require('a-big-triangle');
-var context = require('gl-context');
-var fit = require('canvas-fit');
-var Shader = require('gl-shader');
-
-module.exports = toy;
-
-var vert = '\nprecision mediump float;\n\nattribute vec2 position;\n\nvoid main() {\n  gl_Position = vec4(position, 1, 1);\n}\n'.trim();
-
-// String -> WebGLRenderingContext, Shader
-function toy(frag, cb) {
-  var canvas = document.body.appendChild(document.createElement('canvas'));
-  var gl = context(canvas, render);
-  var shader = Shader(gl, vert, frag);
-  var fitter = fit(canvas);
-
-  render.update = update;
-  render.resize = fitter;
-  render.shader = shader;
-  render.canvas = canvas;
-  render.gl = gl;
-
-  window.addEventListener('resize', fitter, false);
-  return render;
-
-  function render() {
-    var width = gl.drawingBufferWidth;
-    var height = gl.drawingBufferHeight;
-    gl.viewport(0, 0, width, height);
-
-    shader.bind();
-    cb(gl, shader);
-    triangle(gl);
-  }
-
-  function update(frag) {
-    shader.update(vert, frag);
-  }
-}
-
-},{"a-big-triangle":2,"canvas-fit":10,"gl-context":24,"gl-shader":28}],37:[function(require,module,exports){
+},{"ndarray":51,"ndarray-ops":50,"typedarray-pool":56}],33:[function(require,module,exports){
 "use strict"
 
 function doBind(gl, elements, attributes) {
@@ -7381,7 +7203,7 @@ function doBind(gl, elements, attributes) {
 }
 
 module.exports = doBind
-},{}],38:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 "use strict"
 
 var bindAttribs = require("./do-bind.js")
@@ -7421,7 +7243,7 @@ function createVAOEmulated(gl) {
 }
 
 module.exports = createVAOEmulated
-},{"./do-bind.js":37}],39:[function(require,module,exports){
+},{"./do-bind.js":33}],35:[function(require,module,exports){
 "use strict"
 
 var bindAttribs = require("./do-bind.js")
@@ -7509,7 +7331,7 @@ function createVAONative(gl, ext) {
 }
 
 module.exports = createVAONative
-},{"./do-bind.js":37}],40:[function(require,module,exports){
+},{"./do-bind.js":33}],36:[function(require,module,exports){
 "use strict"
 
 var createVAONative = require("./lib/vao-native.js")
@@ -7538,7 +7360,7 @@ function createVAO(gl, attributes, elements, elementsType) {
 
 module.exports = createVAO
 
-},{"./lib/vao-emulated.js":38,"./lib/vao-native.js":39}],41:[function(require,module,exports){
+},{"./lib/vao-emulated.js":34,"./lib/vao-native.js":35}],37:[function(require,module,exports){
 var tokenize = require('glsl-tokenizer')
 var atob     = require('atob-lite')
 
@@ -7563,7 +7385,7 @@ function getName(src) {
   }
 }
 
-},{"atob-lite":4,"glsl-tokenizer":48}],42:[function(require,module,exports){
+},{"atob-lite":4,"glsl-tokenizer":44}],38:[function(require,module,exports){
 module.exports = tokenize
 
 var literals100 = require('./lib/literals')
@@ -7940,7 +7762,7 @@ function tokenize(opt) {
   }
 }
 
-},{"./lib/builtins":44,"./lib/builtins-300es":43,"./lib/literals":46,"./lib/literals-300es":45,"./lib/operators":47}],43:[function(require,module,exports){
+},{"./lib/builtins":40,"./lib/builtins-300es":39,"./lib/literals":42,"./lib/literals-300es":41,"./lib/operators":43}],39:[function(require,module,exports){
 // 300es builtins/reserved words that were previously valid in v100
 var v100 = require('./builtins')
 
@@ -8011,7 +7833,7 @@ module.exports = v100.concat([
   , 'textureProjGradOffset'
 ])
 
-},{"./builtins":44}],44:[function(require,module,exports){
+},{"./builtins":40}],40:[function(require,module,exports){
 module.exports = [
   // Keep this list sorted
   'abs'
@@ -8163,7 +7985,7 @@ module.exports = [
   , 'textureCubeGradEXT'
 ]
 
-},{}],45:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var v100 = require('./literals')
 
 module.exports = v100.slice().concat([
@@ -8252,7 +8074,7 @@ module.exports = v100.slice().concat([
   , 'usampler2DMSArray'
 ])
 
-},{"./literals":46}],46:[function(require,module,exports){
+},{"./literals":42}],42:[function(require,module,exports){
 module.exports = [
   // current
     'precision'
@@ -8348,7 +8170,7 @@ module.exports = [
   , 'using'
 ]
 
-},{}],47:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 module.exports = [
     '<<='
   , '>>='
@@ -8397,7 +8219,7 @@ module.exports = [
   , '}'
 ]
 
-},{}],48:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 var tokenize = require('./index')
 
 module.exports = tokenizeString
@@ -8412,7 +8234,7 @@ function tokenizeString(str, opt) {
   return tokens
 }
 
-},{"./index":42}],49:[function(require,module,exports){
+},{"./index":38}],45:[function(require,module,exports){
 module.exports = function(strings) {
   if (typeof strings === 'string') strings = [strings]
   var exprs = [].slice.call(arguments,1)
@@ -8424,7 +8246,7 @@ module.exports = function(strings) {
   return parts.join('')
 }
 
-},{}],50:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -8510,7 +8332,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],51:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 "use strict"
 
 function invert(hash) {
@@ -8524,7 +8346,7 @@ function invert(hash) {
 }
 
 module.exports = invert
-},{}],52:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 "use strict"
 
 function iota(n) {
@@ -8536,7 +8358,7 @@ function iota(n) {
 }
 
 module.exports = iota
-},{}],53:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -8559,7 +8381,7 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],54:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 "use strict"
 
 var compile = require("cwise-compiler")
@@ -9022,7 +8844,7 @@ exports.equals = compile({
 
 
 
-},{"cwise-compiler":11}],55:[function(require,module,exports){
+},{"cwise-compiler":10}],51:[function(require,module,exports){
 var iota = require("iota-array")
 var isBuffer = require("is-buffer")
 
@@ -9373,7 +9195,7 @@ function wrappedNDArrayCtor(data, shape, stride, offset) {
 
 module.exports = wrappedNDArrayCtor
 
-},{"iota-array":52,"is-buffer":53}],56:[function(require,module,exports){
+},{"iota-array":48,"is-buffer":49}],52:[function(require,module,exports){
 /*!
  * pad-left <https://github.com/jonschlinkert/pad-left>
  *
@@ -9389,7 +9211,7 @@ module.exports = function padLeft(str, num, ch) {
   ch = typeof ch !== 'undefined' ? (ch + '') : ' ';
   return repeat(ch, num) + str;
 };
-},{"repeat-string":59}],57:[function(require,module,exports){
+},{"repeat-string":54}],53:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -9575,47 +9397,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],58:[function(require,module,exports){
-/**
- * Expose `requestAnimationFrame()`.
- */
-
-exports = module.exports = window.requestAnimationFrame
-  || window.webkitRequestAnimationFrame
-  || window.mozRequestAnimationFrame
-  || window.oRequestAnimationFrame
-  || window.msRequestAnimationFrame
-  || fallback;
-
-/**
- * Fallback implementation.
- */
-
-var prev = new Date().getTime();
-function fallback(fn) {
-  var curr = new Date().getTime();
-  var ms = Math.max(0, 16 - (curr - prev));
-  var req = setTimeout(fn, ms);
-  prev = curr;
-  return req;
-}
-
-/**
- * Cancel.
- */
-
-var cancel = window.cancelAnimationFrame
-  || window.webkitCancelAnimationFrame
-  || window.mozCancelAnimationFrame
-  || window.oCancelAnimationFrame
-  || window.msCancelAnimationFrame
-  || window.clearTimeout;
-
-exports.cancel = function(id){
-  cancel.call(window, id);
-};
-
-},{}],59:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /*!
  * repeat-string <https://github.com/jonschlinkert/repeat-string>
  *
@@ -9687,7 +9469,7 @@ function repeat(str, num) {
   return res;
 }
 
-},{}],60:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 /* global window, exports, define */
 
 !function() {
@@ -9920,7 +9702,7 @@ function repeat(str, num) {
     /* eslint-enable quote-props */
 }(); // eslint-disable-line
 
-},{}],61:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 (function (global){
 'use strict'
 
@@ -10175,7 +9957,7 @@ exports.clearCache = function clearCache() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"bit-twiddle":7,"buffer":9,"dup":15}],62:[function(require,module,exports){
+},{"bit-twiddle":7,"buffer":9,"dup":14}],57:[function(require,module,exports){
 "use strict"
 
 function unique_pred(list, compare) {
@@ -10234,7 +10016,7 @@ function unique(list, compare, sorted) {
 
 module.exports = unique
 
-},{}],63:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -10259,14 +10041,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],64:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],65:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -10856,7 +10638,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":64,"_process":57,"inherits":63}],66:[function(require,module,exports){
+},{"./support/isBuffer":59,"_process":53,"inherits":58}],61:[function(require,module,exports){
 var ua = typeof window !== 'undefined' ? window.navigator.userAgent : ''
   , isOSX = /OS X/.test(ua)
   , isOpera = /Opera/.test(ua)
@@ -10994,7 +10776,7 @@ for(i = 112; i < 136; ++i) {
   output[i] = 'F'+(i-111)
 }
 
-},{}],67:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 // Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11681,7 +11463,7 @@ for(i = 112; i < 136; ++i) {
   }
 })();
 
-},{}],68:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 var hiddenStore = require('./hidden-store.js');
 
 module.exports = createStore;
@@ -11702,7 +11484,7 @@ function createStore() {
     };
 }
 
-},{"./hidden-store.js":69}],69:[function(require,module,exports){
+},{"./hidden-store.js":64}],64:[function(require,module,exports){
 module.exports = hiddenStore;
 
 function hiddenStore(obj, key) {
@@ -11720,7 +11502,7 @@ function hiddenStore(obj, key) {
     return store;
 }
 
-},{}],70:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 // Original - @Gozola.
 // https://gist.github.com/Gozala/1269991
 // This is a reimplemented version (with a few bug fixes).
@@ -11751,7 +11533,7 @@ function weakMap() {
     }
 }
 
-},{"./create-store.js":68}],71:[function(require,module,exports){
+},{"./create-store.js":63}],66:[function(require,module,exports){
 'use strict'
 
 var weakMap = typeof WeakMap === 'undefined' ? require('weak-map') : WeakMap
@@ -11793,4 +11575,4 @@ function initWebGLEW(gl) {
   return extensions
 }
 module.exports = initWebGLEW
-},{"weak-map":67}]},{},[1]);
+},{"weak-map":62}]},{},[1]);
