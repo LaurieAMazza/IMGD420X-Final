@@ -11,7 +11,7 @@ const frag = glslify(["precision mediump float;\n#define GLSLIFY 1\n\n  uniform 
 
 var dShader, upShader, state, vide, stateSize, current =0, time = 0, w
 
-let oct1 = 0.0457, oct2 = 2.0, oct3 = 3.0, oct4 = 1., oct5 = 1., oct6 = 1., oct7 = 0.0635, light = 0.0457
+let fVal = 0.0457, dirx = 2.0, diry = 3.0, b = 1., g = 1., r = 1., kVal = 0.0635, light = 0.0457
 const ws = new WebSocket('ws://127.0.0.1:8080')
 ws.onmessage = function(msg){
     const json = JSON.parse(msg.data)
@@ -36,47 +36,47 @@ ws.onmessage = function(msg){
     if(json.address === '/accelerometer/linear/x'){
         console.log("k" + json.args[0].value)
         if(Math.abs(json.args[0].value) > 10){
-            oct7 = Math.abs(json.args[0].value)/1000.0
+            kVal = Math.abs(json.args[0].value)/1000.0
         } else if(Math.abs(json.args[0].value) > 1){
-            oct7 = Math.abs(json.args[0].value)/100.0
+            kVal = Math.abs(json.args[0].value)/100.0
         } else {
-            oct7 = Math.abs(json.args[0].value)
+            kVal = Math.abs(json.args[0].value)
         }
     }
 
     if(json.address === '/accelerometer/gravity/z'){
         console.log("gz" + json.args[0].value)
-        oct2 = Math.abs(json.args[0].value)
+        dirx = Math.abs(json.args[0].value)
     }
 
     if(json.address === '/accelerometer/gravity/y'){
         console.log("gy" + json.args[0].value)
-        oct3 = Math.abs(json.args[0].value)
+        diry = Math.abs(json.args[0].value)
     }
 
     //Rotate the phone to "blend" the colors
     if(json.address === '/rotation_vector/r1'){
         //console.log(json.args[0].value)
-        oct4 = Math.abs(json.args[0].value)
+        b = Math.abs(json.args[0].value)
     }
 
     if(json.address === '/rotation_vector/r2'){
         //console.log(json.args[0].value)
-        oct5 = Math.abs(json.args[0].value)
+        g = Math.abs(json.args[0].value)
     }
 
     if(json.address === '/rotation_vector/r3'){
         //console.log(json.args[0].value)
-        oct6 = Math.abs(json.args[0].value)
+        r = Math.abs(json.args[0].value)
     }
 
-    if(Math.abs(oct7 - oct1) < 0.0178 || (oct7 - oct1) > 0.02){
-        oct7 = oct1 + 0.0178
+    if(Math.abs(kVal - fVal) < 0.0178 || (kVal - fVal) > 0.02){
+        kVal = fVal + 0.0178
     }
 
-    console.log("f" + oct1)
+    console.log("f" + fVal)
 
-    console.log("k" + oct7)
+    console.log("k" + kVal)
 }
 
 shell.on("gl-init", function () {
@@ -130,8 +130,8 @@ shell.on("tick", function () {
     upShader.bind()
     upShader.uniforms.state = prevState.color[0].bind()
     upShader.uniforms.resolution = prevState.shape
-    upShader.uniforms.f = oct1
-    upShader.uniforms.k = oct7
+    upShader.uniforms.f = fVal
+    upShader.uniforms.k = kVal
 
     fillScreen(gl)
 })
@@ -145,11 +145,11 @@ shell.on("gl-render", function () {
     dShader.uniforms.vState = vide
     dShader.uniforms.resolution = state[current].shape
     dShader.uniforms.time = time++
-    dShader.uniforms.dirx = oct2
-    dShader.uniforms.diry = oct3
-    dShader.uniforms.cB = oct4
-    dShader.uniforms.cG = oct5
-    dShader.uniforms.cR = oct6
+    dShader.uniforms.dirx = dirx
+    dShader.uniforms.diry = diry
+    dShader.uniforms.cB = b
+    dShader.uniforms.cG = g
+    dShader.uniforms.cR = r
     dShader.uniforms.blr = light
     fillScreen(gl)
 })
